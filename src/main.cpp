@@ -4,16 +4,7 @@
 #include <AsyncMqttClient.h>
 #include <ESP8266WiFi.h>
 #include <Ticker.h>
-
-#define WIFI_SSID "Solomaha"
-#define WIFI_PASSWORD "solomakha21"
-
-#define MQTT_HOST IPAddress(192, 168, 1, 230)
-#define MQTT_PORT 1883
-#define MQTT_ID "balcony-meteo"
-#define MQTT_PASSWORD "gfbnjdfgshbnmsdgbnhjmksgdfsdfgdhfdhgf"
-
-#define READINGS_COUNT 3
+#include "config.h"
 
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
@@ -24,9 +15,11 @@ Ticker wifiReconnectTimer;
 
 Ticker sendTimer;
 
+Adafruit_BME280 bme;  // I2C
+
 void connectToWifi() {
     Serial.println("Connecting to Wi-Fi...");
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(config::WIFI_SSID, config::WIFI_PASSWORD);
 }
 
 void connectToMqtt() {
@@ -50,12 +43,12 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected &event) {
     wifiReconnectTimer.once(2, connectToWifi);
 }
 
-void onMqttConnect(bool sessionPresent) {
+void onMqttConnect(bool) {
     Serial.println("Connected to MQTT.");
     digitalWrite(LED_BUILTIN, LOW);
 }
 
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+void onMqttDisconnect(AsyncMqttClientDisconnectReason) {
     Serial.println("Disconnected from MQTT.");
     digitalWrite(LED_BUILTIN, HIGH);
 
@@ -69,21 +62,19 @@ uint16_t temperatureSum = 0;
 uint16_t humiditySum = 0;
 uint16_t pressureSum = 0;
 
-Adafruit_BME280 bme;  // I2C
-
 void readData() {
     temperatureSum += (uint16_t) (bme.readTemperature() * 10);
     humiditySum += (uint16_t) bme.readHumidity();
     pressureSum += (uint16_t) (bme.readPressure() * 10);
     currentReading++;
 
-    if (currentReading == READINGS_COUNT) {
+    if (currentReading == config::READINGS_COUNT) {
         if (mqttClient.connected()) {
             mqttClient.publish("variable/balcony-air_temperature", 0, false,
-                               String(temperatureSum / (READINGS_COUNT * 10.0), 1).c_str());
-            mqttClient.publish("variable/balcony-air_humidity", 0, false, String(humiditySum / READINGS_COUNT).c_str());
+                               String(temperatureSum / (config::READINGS_COUNT * 10.0), 1).c_str());
+            mqttClient.publish("variable/balcony-air_humidity", 0, false, String(humiditySum / config::READINGS_COUNT).c_str());
             mqttClient.publish("variable/balcony-air_pressure", 0, false,
-                               String(pressureSum / (READINGS_COUNT * 10.0), 1).c_str());
+                               String(pressureSum / (config::READINGS_COUNT * 10.0), 1).c_str());
 
             Serial.println("Data sent");
         }
@@ -101,7 +92,7 @@ void setup() {
     Serial.println();
 
     if (!bme.begin()) {
-        Serial.println("Could not find a valid BME280 sensor, check wiring!");
+        Serial.println("Could not find a valid BME280 sensor");
         return;
     }
 
@@ -110,13 +101,13 @@ void setup() {
 
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
-    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-    mqttClient.setClientId(MQTT_ID);
-    mqttClient.setCredentials("device", MQTT_PASSWORD);
-
-    sendTimer.attach(60, readData);
+    mqttClient.setServer(config::MQTT_HOST, config::MQTT_PORT);
+    mqttClient.setClientId(config::MQTT_ID);
+    mqttClient.setCredentials("device", config::MQTT_PASSWORD);
 
     connectToWifi();
+
+    sendTimer.attach(config::SENSOR_READ_INTERVAL, readData);
 }
 
 void loop() {}
