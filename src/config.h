@@ -13,7 +13,7 @@ namespace config {
     const char MQTT_ID[] = "balcony-meteo";
     const char MQTT_PASSWORD[] = "gfbnjdfgshbnmsdgbnhjmksgdfsdfgdhfdhgf";
 
-    const uint8_t SENSOR_READ_INTERVAL = 10;
+    const uint8_t SENSOR_READ_INTERVAL = 30;
     const uint8_t READINGS_COUNT = 3;
 }
 

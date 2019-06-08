@@ -1,9 +1,8 @@
-#include <Adafruit_BME280.h>
-#include <Adafruit_Sensor.h>
-#include <ArduinoJson.h>
-#include <AsyncMqttClient.h>
 #include <ESP8266WiFi.h>
+#include <AsyncMqttClient.h>
 #include <Ticker.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 #include "config.h"
 
 AsyncMqttClient mqttClient;
@@ -29,7 +28,6 @@ void connectToMqtt() {
 
 void onWifiConnect(const WiFiEventStationModeGotIP &event) {
     Serial.println("Connected to Wi-Fi.");
-    digitalWrite(LED_BUILTIN, LOW);
 
     connectToMqtt();
 }
@@ -72,7 +70,8 @@ void readData() {
         if (mqttClient.connected()) {
             mqttClient.publish("variable/balcony-air_temperature", 0, false,
                                String(temperatureSum / (config::READINGS_COUNT * 10.0), 1).c_str());
-            mqttClient.publish("variable/balcony-air_humidity", 0, false, String(humiditySum / config::READINGS_COUNT).c_str());
+            mqttClient.publish("variable/balcony-air_humidity", 0, false,
+                               String(humiditySum / config::READINGS_COUNT).c_str());
             mqttClient.publish("variable/balcony-air_pressure", 0, false,
                                String(pressureSum / (config::READINGS_COUNT * 10.0), 1).c_str());
 
@@ -92,8 +91,10 @@ void setup() {
     Serial.println();
 
     if (!bme.begin()) {
-        Serial.println("Could not find a valid BME280 sensor");
-        return;
+        while (true) {
+            Serial.println("Could not find a valid BME280 sensor");
+            delay(2000);
+        }
     }
 
     wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
