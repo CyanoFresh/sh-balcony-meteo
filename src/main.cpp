@@ -16,45 +16,6 @@ Ticker sendTimer;
 
 Adafruit_BME280 bme;  // I2C
 
-void connectToWifi() {
-    Serial.println("Connecting to Wi-Fi...");
-    WiFi.begin(config::WIFI_SSID, config::WIFI_PASSWORD);
-}
-
-void connectToMqtt() {
-    Serial.println("Connecting to MQTT...");
-    mqttClient.connect();
-}
-
-void onWifiConnect(const WiFiEventStationModeGotIP &event) {
-    Serial.println("Connected to Wi-Fi.");
-
-    connectToMqtt();
-}
-
-void onWifiDisconnect(const WiFiEventStationModeDisconnected &event) {
-    Serial.print("Disconnected from Wi-Fi. Reason: ");
-    Serial.println(event.reason);
-    digitalWrite(LED_BUILTIN, HIGH);
-
-    mqttReconnectTimer.detach();
-    wifiReconnectTimer.once(2, connectToWifi);
-}
-
-void onMqttConnect(bool) {
-    Serial.println("Connected to MQTT.");
-    digitalWrite(LED_BUILTIN, LOW);
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason) {
-    Serial.println("Disconnected from MQTT.");
-    digitalWrite(LED_BUILTIN, HIGH);
-
-    if (WiFi.isConnected()) {
-        mqttReconnectTimer.once(2, connectToMqtt);
-    }
-}
-
 uint8_t currentReading = 0;
 uint16_t temperatureSum = 0;
 uint16_t humiditySum = 0;
@@ -75,7 +36,7 @@ void readData() {
             mqttClient.publish("variable/balcony-air_pressure", 0, false,
                                String(pressureSum / (config::READINGS_COUNT * 100.0), 1).c_str());
 
-            Serial.println("Data sent");
+            Serial.println(F("Data sent"));
         }
 
         currentReading = 0;
@@ -85,7 +46,49 @@ void readData() {
     }
 }
 
+void connectToWifi() {
+    Serial.println(F("Connecting to Wi-Fi..."));
+    WiFi.begin(config::WIFI_SSID, config::WIFI_PASSWORD);
+}
+
+void connectToMqtt() {
+    Serial.println(F("Connecting to MQTT..."));
+    mqttClient.connect();
+}
+
+void onWifiConnect(const WiFiEventStationModeGotIP &) {
+    connectToMqtt();
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected &event) {
+    Serial.print(F("Disconnected from Wi-Fi: "));
+    Serial.println(event.reason);
+    digitalWrite(LED_BUILTIN, LOW);
+
+    mqttReconnectTimer.detach();
+    wifiReconnectTimer.once(2, connectToWifi);
+}
+
+void onMqttConnect(bool) {
+    Serial.println(F("Connected to MQTT."));
+    digitalWrite(LED_BUILTIN, HIGH);
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+    Serial.print(F("Disconnected from MQTT. Reason: "));
+    Serial.println((int) reason);
+    digitalWrite(LED_BUILTIN, LOW);
+
+    if (WiFi.isConnected()) {
+        mqttReconnectTimer.once(2, connectToMqtt);
+    }
+}
+
 void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
+
+    digitalWrite(LED_BUILTIN, LOW);
+
     Serial.begin(115200);
     Serial.println();
     Serial.println();
