@@ -16,13 +16,13 @@ Ticker sendTimer;
 
 Adafruit_BME280 bme;  // I2C
 
-uint8_t currentReading = 0;
-uint16_t temperatureSum = 0;
-uint16_t humiditySum = 0;
-uint32_t pressureSum = 0;
+uint8_t currentReading = 0; // max 255
+int16_t temperatureSum = 0;    // max 65 536 / 2
+uint16_t humiditySum = 0;    // max 65 535
+uint32_t pressureSum = 0;   // max ‭4 294 967 296‬
 
 void readData() {
-    temperatureSum += (uint16_t) (bme.readTemperature() * 10);
+    temperatureSum += (int16_t) (bme.readTemperature() * 10);
     humiditySum += (uint16_t) bme.readHumidity();
     pressureSum += (uint32_t) (bme.readPressure());
     currentReading++;
